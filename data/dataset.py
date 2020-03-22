@@ -1,9 +1,10 @@
 import tensorflow as tf
 from functools import partial
 from sklearn.model_selection import train_test_split
-from dataset_utils import parse_filename, tf_parse_filename
 from glob import glob
+import sys
 
+from .dataset_utils import parse_filename, tf_parse_filename
 
 class ProteinDataset:
 	def __init__(
@@ -52,7 +53,7 @@ class ProteinDataset:
 
 		for obj_type in glob(f'{self.path}/*/'):
 			cur_files = glob(obj_type + 'test/*.npy')
-			self.test_files.extend(cur_val)
+			self.test_files.extend(cur_files)
 
 		if len(self.train_files) == 0:
 			print('No training data! Aborting.')

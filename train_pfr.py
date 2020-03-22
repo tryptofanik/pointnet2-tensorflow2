@@ -2,21 +2,22 @@ import os
 import sys
 import datetime
 
+sys.path.insert(0, '.data/')
 sys.path.insert(0, './')
 
 import numpy as np
 import tensorflow as tf
 
+from data.dataset import ProteinDataset
 from models.cls_msg_model import CLS_MSG_Model
 from models.cls_ssg_model import CLS_SSG_Model
 from models.cls_basic_model import Pointnet_Model
-from data.dataset import ProteinDataset
 
 tf.random.set_seed(42)
 
 
 def get_timestamp():
-	timestamp = str(datetime.now())[:16]
+	timestamp = str(datetime.datetime.now())[:16]
 	timestamp = timestamp.replace('-', '')
 	timestamp = timestamp.replace(' ', '_')
 	timestamp = timestamp.replace(':', '')
@@ -72,7 +73,7 @@ def get_lr(initial_learning_rate, decay_steps, decay_rate, step, staircase=False
 
 def train(config, params):
 
-	if params['wandb']:
+	if config['wandb']:
 		if os.environ['WANDB_API_KEY']:
 			import wandb
 
@@ -102,7 +103,7 @@ def train(config, params):
 	loss_object = tf.keras.losses.SparseCategoricalCrossentropy()
 
 	train_loss = tf.keras.metrics.Mean()
-	val_loss = tf.keras.metrcs.Mean()
+	val_loss = tf.keras.metrics.Mean()
 	test_loss = tf.keras.metrics.Mean()
 
 	train_acc = tf.keras.metrics.SparseCategoricalAccuracy()
@@ -145,7 +146,7 @@ def train(config, params):
 
 			train_loss, train_acc = train_step(optimizer, model, loss_object, train_loss, train_acc, x_train, y_train)
 
-			if params['wandb']:
+			if config['wandb']:
 				wandb.log(
 					{'tain_loss': train_loss, 'train_acc': train_acc, 'step': step, 'lr': lr.numpy(),}
 				)
@@ -157,7 +158,7 @@ def train(config, params):
 
 				val_loss, val_acc = test_step(optimizer, model, loss_object, val_loss, val_acc, x_val, y_val)
 
-				if params['wabd']:
+				if config['wabd']:
 					wandb.log({'val_loss': val_loss, 'val_acc': val_acc, 'epoch': epoch, 'lr': lr.numpy()})
 
 			if val_acc > best_acc:
@@ -191,7 +192,8 @@ def train(config, params):
 if __name__ == '__main__':
 
 	config = {
-		'dataset_dir': '/scidatalg/ar/scaled_splited7',
+		# 'dataset_dir': '/scidatalg/ar/scaled_splited7',
+		'dataset_dir': '/scidatasm/ar/scaled_splited_3',
 		'log_dir': 'logs',
 		'log_code': 'ssg_1',
 		# 'log_freq': 10,
@@ -205,10 +207,11 @@ if __name__ == '__main__':
 		'num_points': 2048,
 		'num_classes': 198,
 		'cords_channels': 3,
-		'features_channels': 4,
+		'features_channels': 0,
 		'val_split': 0.1,
 		'lr': 0.01,
 		'lr_decay_steps': 7000,
+		'lr_decay_rate': 0.7,
 		'epochs': 100,
 		'msg': False,
 		'bn': False,

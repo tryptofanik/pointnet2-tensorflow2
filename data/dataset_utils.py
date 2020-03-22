@@ -36,7 +36,7 @@ def parse_filename(filename_batch, n_points=1024, cords_channels=3, features_cha
             pt_cloud = np.concatenate([cords_cloud, features_cloud], axis=1)
 
         # Create classification label
-        obj_type = filename_str.split('/')[1]   # e.g., airplane, bathtub
+        obj_type = filename_str.split('/')[-3]   # e.g., airplane, bathtub
         label = np.zeros(len(IDX_LOOKUP), dtype=np.float32)
         label[IDX_LOOKUP[obj_type]] = 1.0
 
