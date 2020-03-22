@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Layer, BatchNormalization
+from tensorflow.keras.layers import Layer, BatchNormalization, Lambda
 
 from . import utils
 
@@ -7,12 +7,14 @@ from . import utils
 class Pointnet_SA(Layer):
 
 	def __init__(
-		self, npoint, radius, nsample, mlp, group_all=False, knn=False, use_xyz=True, activation=tf.nn.relu, bn=False
+		self, npoint, cords_channels, features_channels, radius, nsample, mlp, group_all=False, knn=False, use_xyz=True, activation=tf.nn.relu, bn=False
 	):
 
 		super(Pointnet_SA, self).__init__()
 
 		self.npoint = npoint
+		self.cords_channels = cords_channels
+		self.features_channels = features_channels
 		self.radius = radius
 		self.nsample = nsample
 		self.mlp = mlp
@@ -33,6 +35,10 @@ class Pointnet_SA(Layer):
 
 	def call(self, xyz, points, training=True):
 
+		print(f'Pointnet_SA called {self.npoint}')
+
+		print(f'Inputs are: xyz {xyz}, points {points}')
+
 		if points is not None:
 			if len(points.shape) < 3:
 				points = tf.expand_dims(points, axis=0)
@@ -51,10 +57,16 @@ class Pointnet_SA(Layer):
 				use_xyz=self.use_xyz
 			)
 
+		print(f'after sample and group; new_xyz {new_xyz}, new_points {new_points}, idx {idx}, grouped_xyz {grouped_xyz}')
+
 		for i, mlp_layer in enumerate(self.mlp_list):
 			new_points = mlp_layer(new_points, training=training)
 
+		print('after mlp', new_points)
+
 		new_points = tf.math.reduce_max(new_points, axis=2, keepdims=True)
+
+		print('after reduce', new_points)
 
 		return new_xyz, tf.squeeze(new_points)
 

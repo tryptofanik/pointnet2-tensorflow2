@@ -16,11 +16,11 @@ from .cpp_modules import (
 )
 
 
-def sample_and_group(npoint, radius, nsample, xyz, points, knn=False, use_xyz=True):
+def sample_and_group(npoint: int, radius, nsample: int, xyz, points, knn=False, use_xyz=True):
 
 	new_xyz = gather_point(xyz, farthest_point_sample(npoint, xyz)) # (batch_size, npoint, 3)
 	if knn:
-		_,idx = knn_point(nsample, xyz, new_xyz)
+		_, idx = knn_point(nsample, xyz, new_xyz)
 	else:
 		idx, pts_cnt = query_ball_point(radius, nsample, xyz, new_xyz)
 	grouped_xyz = group_point(xyz, idx) # (batch_size, npoint, nsample, 3)

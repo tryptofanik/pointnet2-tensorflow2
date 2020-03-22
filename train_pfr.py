@@ -80,9 +80,19 @@ def train(config, params):
 			wandb.init(project='pointnet_pfr', name=INIT_TIMESTAMP)
 
 	if params['msg']:
-		model = CLS_MSG_Model(params['batch_size'], params['num_points'], params['num_classes'], params['bn'])
+		model = CLS_MSG_Model(
+			batch_size=params['batch_size'],
+			num_points=params['num_points'],
+			num_classes=params['num_classes'],
+			bn=params['bn'])
 	else:
-		model = CLS_SSG_Model(params['batch_size'], params['num_points'], params['num_classes'], params['bn'])
+		model = CLS_SSG_Model(
+			batch_size=params['batch_size'],
+			num_points=params['num_points'],
+			num_classes=params['num_classes'],
+			cords_channels=params['cords_channels'],
+			features_channels=params['features_channels'],
+			bn=params['bn'])
 
 	model.build(
 		input_shape=(params['batch_size'], params['num_points'], params['cords_channels'] + params['features_channels'])
@@ -100,7 +110,7 @@ def train(config, params):
 
 	lr = tf.Variable(get_lr(**LR_ARGS, step=0), trainable=False)
 	optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
-	loss_object = tf.keras.losses.SparseCategoricalCrossentropy()
+	loss_object = tf.keras.losses.CategoricalCrossentropy()
 
 	train_loss = tf.keras.metrics.Mean()
 	val_loss = tf.keras.metrics.Mean()
