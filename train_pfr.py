@@ -1,6 +1,8 @@
 import os
 import sys
 import datetime
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 sys.path.insert(0, '.data/')
 sys.path.insert(0, './')
@@ -27,33 +29,39 @@ def get_timestamp():
 INIT_TIMESTAMP = get_timestamp()
 
 
-def train_step(optimizer, model, loss_object, train_loss, train_acc, x_train, y_train):
+def update_metrics(metrics, pred, y_truth, loss):
+	metrics['acc'].update_state(y_truth, pred)
+	metrics['loss'].update_state([loss])
+	metrics['precision'].update_state(y_truth, pred)
+	metrics['recall'].update_state(y_truth, pred)
+	metrics['acc'].update_state(y_truth, pred)
+	metrics['false_neg'].update_state(y_truth, pred)
+	metrics['false_pos'].update_state(y_truth, pred)
+	metrics['true_neg'].update_state(y_truth, pred)
+	metrics['true_pos'].update_state(y_truth, pred)
+
+
+def train_step(optimizer, model, loss_object, metrics, x_train, y_train):
 
 	with tf.GradientTape() as tape:
 
 		pred = model(x_train)
 		loss = loss_object(y_train, pred)
 
-	train_loss.update_state([loss])
-	train_acc.update_state(y_train, pred)
+	update_metrics(metrics, pred, y_train, loss)
 
 	gradients = tape.gradient(loss, model.trainable_variables)
 	optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
-	return train_loss, train_acc
 
+def test_step(optimizer, model, loss_object, metrics, x_test, y_test):
 
-def test_step(optimizer, model, loss_object, test_loss, test_acc, test_pts, test_labels):
+	with tf.GradientTape():
 
-	with tf.GradientTape() as tape:
+		pred = model(x_test)
+		loss = loss_object(y_test, pred)
 
-		pred = model(test_pts)
-		loss = loss_object(test_labels, pred)
-
-	test_loss.update_state([loss])
-	test_acc.update_state(test_labels, pred)
-
-	return test_loss, test_acc
+	update_metrics(metrics, pred, y_test, loss)
 
 
 def get_lr(initial_learning_rate, decay_steps, decay_rate, step, staircase=False, warm_up=True):
@@ -112,21 +120,18 @@ def train(config, params):
 	optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
 	loss_object = tf.keras.losses.CategoricalCrossentropy()
 
-	train_loss = tf.keras.metrics.Mean()
-	val_loss = tf.keras.metrics.Mean()
-	test_loss = tf.keras.metrics.Mean()
-
-	train_acc = tf.keras.metrics.CategoricalAccuracy()
-	val_acc = tf.keras.metrics.CategoricalAccuracy()
-	test_acc = tf.keras.metrics.CategoricalAccuracy()
-
-	train_prec = tf.keras.metrics.Precision()
-	val_prec = tf.keras.metrics.Precision()
-	test_prec = tf.keras.metrics.Precision()
-
-	train_recall = tf.keras.metrics.Recall()
-	val_recall = tf.keras.metrics.Recall()
-	test_recall = tf.keras.metrics.Recall()
+	metrics = {}
+	for ds in ['train', 'val', 'test']:
+		metrics[ds] = {}
+		metrics[ds]['acc'] = tf.keras.metrics.CategoricalAccuracy()
+		metrics[ds]['loss'] = tf.keras.metrics.Mean()
+		metrics[ds]['precision'] = tf.keras.metrics.Precision()
+		metrics[ds]['recall'] = tf.keras.metrics.Recall()
+		metrics[ds]['acc'] = tf.keras.metrics.CategoricalAccuracy()
+		metrics[ds]['false_neg'] = tf.keras.metrics.FalseNegatives()
+		metrics[ds]['false_pos'] = tf.keras.metrics.FalsePositives()
+		metrics[ds]['true_neg'] = tf.keras.metrics.TrueNegatives()
+		metrics[ds]['true_pos'] = tf.keras.metrics.TruePositives()
 
 	database_manager = ProteinDataset(
 		path=config['dataset_dir'],
@@ -154,49 +159,71 @@ def train(config, params):
 
 		for x_train, y_train in train_ds:
 
-			train_loss, train_acc = train_step(optimizer, model, loss_object, train_loss, train_acc, x_train, y_train)
+			train_step(optimizer, model, loss_object, metrics['train'], x_train, y_train)
 
-			if config['wandb']:
-				wandb.log(
-					{'tain_loss': train_loss, 'train_acc': train_acc, 'step': step, 'lr': lr.numpy(),}
-				)
+			lr.assign(get_lr(**LR_ARGS, step=step))
 
 			step += 1
 
+		if config['wandb']:
+			wandb.log(
+				{**{'train_' + k: v.result().numpy() for k, v in metrics['train'].items()}, 'step': step, 'lr': lr.numpy()}
+			)
+
+		for metric in metrics['train'].values():
+			metric.reset_states()
+
 		if epoch % config['val_freq'] == 0:
+
 			for x_val, y_val in val_ds:
 
-				val_loss, val_acc = test_step(optimizer, model, loss_object, val_loss, val_acc, x_val, y_val)
+				test_step(optimizer, model, loss_object, metrics['val'], x_val, y_val)
 
-				if config['wabd']:
-					wandb.log({'val_loss': val_loss, 'val_acc': val_acc, 'epoch': epoch, 'lr': lr.numpy()})
+			if config['wandb']:
+				wandb.log({**{'val_' + k: v.result().numpy() for k, v in metrics['val'].items()}, 'epoch': epoch, 'lr': lr.numpy()})
 
-			if val_acc > best_acc:
-				best_acc = val_acc
+			if metrics['val']['acc'].result().numpy() > best_acc:
+				best_acc = metrics['val']['acc'].result().numpy()
 				model.save_weights('model/checkpoints/' + INIT_TIMESTAMP + '/epoch-' + str(epoch), save_format='tf')
 
-	# while True:
+			for metric in metrics['val'].values():
+				metric.reset_states()
 
-	# 	x_train, y_train = train_ds.get_batch()
+	# Evaluate
+	size = 0
 
-	# 	loss, train_acc = train_step(optimizer, model, loss_object, train_loss, train_acc, x_train, y_train)
+	confusion_mat = np.zeros((params['num_classes'], params['num_classes']), dtype=np.float32)
+	for x_test, y_test in test_ds:
+		size += x_test.shape[0]
 
-	# 	with train_summary_writer.as_default():
+		pred = model(x_test, training=False)
+		loss = loss_object(y_train, pred)
 
-	# 		if optimizer.iterations % config['log_freq'] == 0:
-	# 			tf.summary.scalar('loss', train_loss.result(), step=optimizer.iterations)
-	# 			tf.summary.scalar('accuracy', train_acc.result(), step=optimizer.iterations)
+		update_metrics(metrics['test'], pred, y_test, loss)
 
-	# 	if optimizer.iterations % config['test_freq'] == 0:
+		max_idxs = tf.math.argmax(pred, axis=1)
+		for true_class, pred_class in zip(np.argwhere(y_test)[:, 1], max_idxs.numpy()):
+			confusion_mat[true_class, pred_class] += 1
 
-	# 		test_pts, test_labels = val_ds.get_batch()
+	row_norm = np.sum(confusion_mat, axis=1)
+	row_norm = np.expand_dims(row_norm, axis=1)
+	row_norm = np.repeat(row_norm, params['num_classes'], axis=1)
+	confusion_mat /= row_norm
 
-	# 		test_loss, test_acc = test_step(optimizer, model, loss_object, test_loss, test_acc, test_pts, test_labels)
+	mask = confusion_mat < 0.05
+	plt.figure(figsize=(11, 10.5))  # width by height
+	ax = sns.heatmap(confusion_mat, annot=True, annot_kws={'size': 9},
+						fmt='.1f', cbar=False, cmap='binary', mask=mask, linecolor='black', linewidths=0.5)
+	ax.xaxis.set_ticks_position('top')
+	ax.xaxis.set_label_position('top')
+	ax.set_ylabel('True Class')
+	ax.set_xlabel('Predicted Class')
+	ax.spines['top'].set_visible(True)
+	plt.yticks(rotation=0)
+	plt.savefig('figs/confusion_matrix.png', bbox_inches='tight')
 
-	# 		with test_summary_writer.as_default():
-
-	# 			tf.summary.scalar('loss', test_loss.result(), step=optimizer.iterations)
-	# 			tf.summary.scalar('accuracy', test_acc.result(), step=optimizer.iterations)
+	if config['wabd']:
+		wandb.log({'test_' + k: v.result().numpy() for k, v in metrics['test'].items()})
 
 
 if __name__ == '__main__':
@@ -213,19 +240,18 @@ if __name__ == '__main__':
 	}
 
 	params = {
-		'batch_size': 32,
+		'batch_size': 35,
 		'num_points': 2048,
 		'num_classes': 198,
 		'cords_channels': 3,
-		'features_channels': 0,
+		'features_channels': 4,
 		'val_split': 0.1,
 		'lr': 0.01,
-		'lr_decay_steps': 7000,
+		'lr_decay_steps': 3000,
 		'lr_decay_rate': 0.7,
-		'epochs': 100,
+		'epochs': 10,
 		'msg': False,
 		'bn': False,
 	}
 
 	train(config, params)
-
