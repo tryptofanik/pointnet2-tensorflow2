@@ -203,7 +203,7 @@ if __name__ == '__main__':
 
 	config = {
 		# 'dataset_dir': '/scidatalg/ar/scaled_splited7',
-		'dataset_dir': '/scidatasm/ar/scaled_splited_3',
+		'dataset_dir': '/content/scaled_splited',
 		'log_dir': 'logs',
 		'log_code': 'ssg_1',
 		# 'log_freq': 10,
