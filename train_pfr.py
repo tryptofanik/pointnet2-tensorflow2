@@ -229,8 +229,7 @@ def train(config, params):
 if __name__ == '__main__':
 
 	config = {
-		# 'dataset_dir': '/scidatalg/ar/scaled_splited7',
-		'dataset_dir': '/content/scaled_splited',
+		'dataset_dir': '/scidatalg/ar/scaled_splited7',
 		'log_dir': 'logs',
 		'log_code': 'ssg_1',
 		# 'log_freq': 10,
@@ -249,7 +248,7 @@ if __name__ == '__main__':
 		'lr': 0.01,
 		'lr_decay_steps': 3000,
 		'lr_decay_rate': 0.7,
-		'epochs': 10,
+		'epochs': 2000,
 		'msg': False,
 		'bn': False,
 	}
