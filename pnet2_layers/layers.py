@@ -35,9 +35,9 @@ class Pointnet_SA(Layer):
 
 	def call(self, xyz, points, training=True):
 
-		print(f'Pointnet_SA called {self.npoint}')
+		# print(f'Pointnet_SA called {self.npoint}')
 
-		print(f'Inputs are: xyz {xyz}, points {points}')
+		# print(f'Inputs are: xyz {xyz}, points {points}')
 
 		if points is not None:
 			if len(points.shape) < 3:
@@ -57,16 +57,16 @@ class Pointnet_SA(Layer):
 				use_xyz=self.use_xyz
 			)
 
-		print(f'after sample and group; new_xyz {new_xyz}, new_points {new_points}, idx {idx}, grouped_xyz {grouped_xyz}')
+		# print(f'after sample and group; new_xyz {new_xyz}, new_points {new_points}, idx {idx}, grouped_xyz {grouped_xyz}')
 
 		for i, mlp_layer in enumerate(self.mlp_list):
 			new_points = mlp_layer(new_points, training=training)
 
-		print('after mlp', new_points)
+		# print('after mlp', new_points)
 
 		new_points = tf.math.reduce_max(new_points, axis=2, keepdims=True)
 
-		print('after reduce', new_points)
+		# print('after reduce', new_points)
 
 		return new_xyz, tf.squeeze(new_points)
 

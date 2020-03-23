@@ -73,7 +73,7 @@ class CLS_SSG_Model(Model):
 
 		self.dropout1 = Dropout(self.keep_prob)
 
-		self.dense2 = Dense(128, activation=self.activation)
+		self.dense2 = Dense(256, activation=self.activation)
 		if self.bn: self.bn_fc2 = BatchNormalization()
 
 		self.dropout2 = Dropout(self.keep_prob)

@@ -116,9 +116,9 @@ def train(config, params):
 	val_loss = tf.keras.metrics.Mean()
 	test_loss = tf.keras.metrics.Mean()
 
-	train_acc = tf.keras.metrics.SparseCategoricalAccuracy()
-	val_acc = tf.keras.metrics.SparseCategoricalAccuracy()
-	test_acc = tf.keras.metrics.SparseCategoricalAccuracy()
+	train_acc = tf.keras.metrics.CategoricalAccuracy()
+	val_acc = tf.keras.metrics.CategoricalAccuracy()
+	test_acc = tf.keras.metrics.CategoricalAccuracy()
 
 	train_prec = tf.keras.metrics.Precision()
 	val_prec = tf.keras.metrics.Precision()
