@@ -167,7 +167,7 @@ def train(config, params):
 
 		if config['wandb']:
 			wandb.log(
-				{**{'train_' + k: v.result().numpy() for k, v in metrics['train'].items()}, 'step': step, 'lr': lr.numpy()}
+				{**{'train_' + k: v.result().numpy() for k, v in metrics['train'].items()}}
 			)
 
 		for metric in metrics['train'].values():
@@ -239,7 +239,7 @@ if __name__ == '__main__':
 	}
 
 	params = {
-		'batch_size': 35,
+		'batch_size': 21,
 		'num_points': 2048,
 		'num_classes': 198,
 		'cords_channels': 3,
